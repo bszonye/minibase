@@ -1,7 +1,7 @@
 // base     size of the base rim (diameter or [width, length])
 // slope    horizontal component of the wall slope (number or xy-vector)
 // height   height of the base
-module base_hull(base=25, face=undef, slope=1, height=3.25) {
+module minibase_hull(base=25, face=undef, slope=1, height=3.25) {
     base_xy = is_num(base) ? [base, base] : base;
     slope_xy = is_num(slope) ? [slope, slope] : slope;
     face_xy = is_undef(face) ? base_xy - 2 * slope_xy : face;
@@ -14,36 +14,43 @@ module base_hull(base=25, face=undef, slope=1, height=3.25) {
     }
 }
 
-module base_linear(base=25, slope=1, height=3.25) {
+module minibase(base=25, height=3.25, slope=1, wall=1.25,
+        magnet=[6,2], gap=0.1, sheath=0.5, washer=16, guide=2,
+        top=undef, face=undef) {
     base_xy = is_num(base) ? [base, base] : base;
     slope_xy = is_num(slope) ? [slope, slope] : slope;
-    face_xy = base_xy - 2 * slope_xy;
+    face_xy = is_undef(face) ? base_xy - 2 * slope_xy : face;
 
-    d = max(face_xy);
-    face_scale = face_xy / d;
-    base_scale = [
-        for (i = [0:1:len(base_xy)-1]) base_xy[i] / face_xy[i]
-    ];
-    linear_extrude(height=height, scale=base_scale)
-        scale(face_scale) circle(d=d);
-}
+    dbase = max(base_xy);
+    dface = max(face_xy);
+    dmax = max(dbase, dface);
 
-module crosshair(width=2, outside=25, height=3.25, gap=16) {
     difference() {
         union() {
-            cube([outside, width, 2*height], center=true);
-            cube([width, outside, 2*height], center=true);
+            // main shell of the base
+            difference() {
+                minibase_hull(base);
+                translate([0, 0, is_undef(top) ? wall : top])
+                    minibase_hull(base - wall);
+            }
+            // handle guides
+            intersection() {
+                minibase_hull(base);
+                difference() {
+                    union() {
+                        cube([dmax, guide, 2*height], center=true);
+                        cube([guide, dmax, 2*height], center=true);
+                    }
+                    cube([washer, washer, 3*height], center=true);
+                }
+            }
+            // magnet sheath
+            cylinder(d=magnet[0] + 2*gap + 2*sheath, h=height);
         }
-        cube([gap, gap, 3*height], center=true);
+        // magnet well
+        translate([0, 0, height - magnet[1] - gap])
+            cylinder(d=magnet[0] + 2*gap, height);
     }
 }
-
-// base_hull();
-// base_hull(base=[60, 80], slope=-5);
-// base_hull(base=[80, 60], slope=[60, 80]);
-
-// base_linear();
-// base_linear(base=[60, 80], slope=-5);
-// base_linear(base=[60, 80], slope=[80, 60]);
 
 // vim: ai si sw=4 et
