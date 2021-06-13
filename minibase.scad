@@ -1,12 +1,12 @@
 default_height = 3.25;
 default_slope = 1;
 default_wall = 1.25;
-default_tray = 1;
 default_magnet = [6, 2];
 default_sheath = 0.5;
 default_washer = 16;
 default_guide = 2;
 default_tolerance = 0.1;
+inch = 25.4;
 
 // rim      size of base rim: diameter or [width, length]
 // height   height of base
@@ -89,26 +89,45 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
         magnet=magnet, sheath=sheath, washer=washer, guide=guide);
 }
 
-module minitray(rim, ranks=[3,2], space=25, wall=default_tray) {
+module minitray(rim, ranks=[3,2], space=25, wall=1) {
     gap = default_tolerance;
-    mx = rim + 2*gap;  // minimum spacing, also used for hypotenuse
-    dx = max(rim + space, mx);
-    theta = acos(dx/2 / mx);
-    dy = mx * sin(theta);
-    %cube([dx, space, wall]);
-    for (i = [0:len(ranks)-1]) {
-        rank = ranks[i];
-        y = rim/2 + i * dy;
-        for (j = [0:rank-1]) {
-            shift = (i % 2) / 2;
-            x = (j+shift) * dx;
-            translate([x, y, wall]) cylinder(2*wall, r=rim/2+gap);
+    wmin = rim + 2*gap;
+    wmax = max(rim + space, wmin);
+    adeep = asin(space/wmin);  // as deep as possible
+    awide = acos(wmax/wmin/2);  // as wide as possible
+    angle = max(30, awide);
+    echo(angle);
+    dy = wmin * sin(angle);
+    dx = wmin * cos(angle) * 2;
+    centers = [
+        for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
+            [(j + (i%2)/2)*dx, i*dy]
+    ];
+    translate([rim/2+wall, rim/2+wall]) {
+        %translate([dx/2, dy, 0]) cylinder(1.5*wall, r=rim/2+inch);
+        %for (center = centers) translate(center)
+            translate([0, 0, wall+gap]) cylinder(2*wall, d=rim);
+        difference() {
+            for (center = centers) translate(center)
+                cylinder(2*wall, d=rim+2*wall);
+            translate([0, 0, wall]) linear_extrude(2*wall)
+                offset(delta=-wall+gap, chamfer=true)
+                for (center = centers) translate(center)
+                    circle(d=rim+2*wall);
         }
     }
 }
 
+module minitray_25mm() {
+    minitray(25, [5], 0);
+}
+
 module minitray_32mm() {
     minitray(32);
+}
+
+module minitray_40mm() {
+    minitray(40);
 }
 
 // vim: ai si sw=4 et
