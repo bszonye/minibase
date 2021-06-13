@@ -119,7 +119,7 @@ module minitray(rim, ranks=[3,2], space=25, wall=1) {
 }
 
 module minitray_25mm() {
-    minitray(25, [5], 0);
+    minitray(25, space=0);
 }
 
 module minitray_32mm() {
