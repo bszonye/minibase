@@ -96,24 +96,27 @@ module minitray(rim, ranks=[3,2], space=25, wall=1) {
     adeep = asin(space/wmin);  // as deep as possible
     awide = acos(wmax/wmin/2);  // as wide as possible
     angle = max(30, awide);
-    echo(angle);
     dy = wmin * sin(angle);
     dx = wmin * cos(angle) * 2;
+    echo(angle, dx-rim, dy+wall);
     centers = [
         for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
             [(j + (i%2)/2)*dx, i*dy]
     ];
+    module outline() {
+        softness = rim / 50;
+        offset(r=-softness) offset(r=softness)
+            for (center = centers) translate(center) circle(d=rim+2*wall);
+    }
+
     translate([rim/2+wall, rim/2+wall]) {
         %translate([dx/2, dy, 0]) cylinder(1.5*wall, r=rim/2+inch);
-        %for (center = centers) translate(center)
+        *for (center = centers) translate(center)
             translate([0, 0, wall+gap]) cylinder(2*wall, d=rim);
         difference() {
-            for (center = centers) translate(center)
-                cylinder(2*wall, d=rim+2*wall);
+            linear_extrude(2*wall) outline();
             translate([0, 0, wall]) linear_extrude(2*wall)
-                offset(delta=-wall+gap, chamfer=true)
-                for (center = centers) translate(center)
-                    circle(d=rim+2*wall);
+                offset(r=-wall+gap) outline();
         }
     }
 }
@@ -127,7 +130,7 @@ module minitray_32mm() {
 }
 
 module minitray_40mm() {
-    minitray(40);
+    minitray(40, space=24.8);  // best spacing compromise
 }
 
 // vim: ai si sw=4 et
