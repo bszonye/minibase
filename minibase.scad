@@ -1,6 +1,7 @@
 default_height = 3.25;
 default_slope = 1;
 default_wall = 1.25;
+default_tray = 1;
 default_magnet = [6, 2];
 default_sheath = 0.5;
 default_washer = 16;
@@ -86,6 +87,28 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
         washer=default_washer, guide=default_guide) {
     minibase(25, height=default_height, slope=default_slope, wall=default_wall,
         magnet=magnet, sheath=sheath, washer=washer, guide=guide);
+}
+
+module minitray(rim, ranks=[3,2], space=25, wall=default_tray) {
+    gap = default_tolerance;
+    mx = rim + 2*gap;  // minimum spacing, also used for hypotenuse
+    dx = max(rim + space, mx);
+    theta = acos(dx/2 / mx);
+    dy = mx * sin(theta);
+    %cube([dx, space, wall]);
+    for (i = [0:len(ranks)-1]) {
+        rank = ranks[i];
+        y = rim/2 + i * dy;
+        for (j = [0:rank-1]) {
+            shift = (i % 2) / 2;
+            x = (j+shift) * dx;
+            translate([x, y, wall]) cylinder(2*wall, r=rim/2+gap);
+        }
+    }
+}
+
+module minitray_32mm() {
+    minitray(32);
 }
 
 // vim: ai si sw=4 et
