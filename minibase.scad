@@ -91,7 +91,7 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
 }
 
 module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
-        gap=default_tolerance) {
+        gap=0.25) {
     wmin = rim;
     wmax = max(rim + space, wmin);
     adeep = asin(space/wmin);  // as deep as possible
@@ -131,11 +131,11 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
 }
 
 module minitray_25mm() {
-    minitray(25, space=0);
+    minitray(25, space=0, gap=0.1);
 }
 
 module minitray_32mm() {
-    minitray(32, gap=0.2);
+    minitray(32);
 }
 
 module minitray_40mm() {
