@@ -90,15 +90,18 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
         magnet=magnet, sheath=sheath, washer=washer, guide=guide);
 }
 
-module minitray(rim, ranks=[3,2], space=25, height=3.2, wall=1, flat=1) {
+module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
+        gap=default_tolerance) {
     wmin = rim;
     wmax = max(rim + space, wmin);
     adeep = asin(space/wmin);  // as deep as possible
     awide = acos(wmax/wmin/2);  // as wide as possible
     angle = max(30, awide);
-    dy = wmin * sin(angle);
-    dx = wmin * cos(angle) * 2;
-    shell = wall + default_tolerance;
+    // dy = wmin * sin(angle);
+    // dx = wmin * cos(angle) * 2;
+    dx = wmax;
+    dy = dx / cos(angle) * sin(angle) / 2;
+    shell = wall + gap;
     echo(angle, dx-rim, dy+shell);
     centers = [
         for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
@@ -132,11 +135,11 @@ module minitray_25mm() {
 }
 
 module minitray_32mm() {
-    minitray(32);
+    minitray(32, gap=0.2);
 }
 
 module minitray_40mm() {
-    minitray(40, space=24.6);  // best spacing compromise
+    minitray(39.5);
 }
 
 // vim: ai si sw=4 et
