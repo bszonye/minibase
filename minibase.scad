@@ -7,6 +7,7 @@ default_washer = 16;
 default_guide = 2;
 default_tolerance = 0.1;
 inch = 25.4;
+bit = 0.01;
 
 // rim      size of base rim: diameter or [width, length]
 // height   height of base
@@ -33,11 +34,11 @@ module minibase_hull(rim, height=default_height, slope=default_slope,
 // sheath   thickness of magnet sheath
 // washer   diameter of washer gap
 // guide    thickness of guide rails
-// roof     thickness of base top (default=wall)
+// flat     thickness of base top (default=wall)
 // top      top dimensions: diameter or [width, length] (default from slope)
 module minibase(rim, height=default_height, slope=default_slope,
         wall=default_wall, magnet=default_magnet, sheath=default_sheath,
-        washer=default_washer, guide=default_guide, roof=undef, top=undef) {
+        washer=default_washer, guide=default_guide, flat=undef, top=undef) {
     // convert diameters & slope runs to xy-vectors
     rim_xy = is_num(rim) ? [rim, rim] : rim;
     slope_xy = is_num(slope) ? [slope, slope] : slope;
@@ -59,7 +60,7 @@ module minibase(rim, height=default_height, slope=default_slope,
             // main shell of the base
             difference() {
                 minibase_hull(rim_xy, height, top=top_xy);
-                translate([0, 0, is_undef(roof) ? wall : roof])
+                translate([0, 0, is_undef(flat) ? wall : flat])
                     minibase_hull(rim_xy-2*wall_xy, height, top=top_xy-2*wall_xy);
             }
             // handle guides
@@ -89,34 +90,39 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
         magnet=magnet, sheath=sheath, washer=washer, guide=guide);
 }
 
-module minitray(rim, ranks=[3,2], space=25, wall=1) {
-    gap = default_tolerance;
-    wmin = rim + 2*gap;
+module minitray(rim, ranks=[3,2], space=25, height=3.2, wall=1, flat=1) {
+    wmin = rim;
     wmax = max(rim + space, wmin);
     adeep = asin(space/wmin);  // as deep as possible
     awide = acos(wmax/wmin/2);  // as wide as possible
     angle = max(30, awide);
     dy = wmin * sin(angle);
     dx = wmin * cos(angle) * 2;
-    echo(angle, dx-rim, dy+wall);
+    shell = wall + default_tolerance;
+    echo(angle, dx-rim, dy+shell);
     centers = [
         for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
             [(j + (i%2)/2)*dx, i*dy]
     ];
-    module outline() {
-        softness = rim / 50;
+    module outline(softness) {
         offset(r=-softness) offset(r=softness)
-            for (center = centers) translate(center) circle(d=rim+2*wall);
+            for (center = centers) translate(center) circle(d=rim+2*shell);
     }
 
-    translate([rim/2+wall, rim/2+wall]) {
-        %translate([dx/2, dy, 0]) cylinder(1.5*wall, r=rim/2+inch);
-        *for (center = centers) translate(center)
-            translate([0, 0, wall+gap]) cylinder(2*wall, d=rim);
+    translate([rim/2+shell, rim/2+shell]) {
+        %union() {
+            if (space) translate([dx/2, dy, -bit])
+                cylinder(height+2*bit, r=rim/2+inch);
+            for (center = centers) translate(center)
+                translate([0, 0, flat+bit]) cylinder(height, d=rim);
+        }
+        *linear_extrude(height+bit) outline(0);
         difference() {
-            linear_extrude(2*wall) outline();
-            translate([0, 0, wall]) linear_extrude(2*wall)
-                offset(r=-wall+gap) outline();
+            indent = rim/2 * (cos(angle)/tan(angle) + sin(angle) - 1) - shell;
+            echo(indent);
+            linear_extrude(height) outline(max(indent, 3));
+            translate([0, 0, flat]) linear_extrude(height)
+                offset(r=-wall) outline(space > wall ? 1 : 0.25);
         }
     }
 }
@@ -130,7 +136,7 @@ module minitray_32mm() {
 }
 
 module minitray_40mm() {
-    minitray(40, space=24.8);  // best spacing compromise
+    minitray(40, space=24.6);  // best spacing compromise
 }
 
 // vim: ai si sw=4 et
