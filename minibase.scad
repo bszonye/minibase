@@ -91,8 +91,8 @@ module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
 }
 
 module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
-        gap=0.25) {
-    wmin = rim;
+        margin=0.25, gutter=0.15) {
+    wmin = rim + gutter;  // gap between centered bases
     wmax = max(rim + space, wmin);
     adeep = asin(space/wmin);  // as deep as possible
     awide = acos(wmax/wmin/2);  // as wide as possible
@@ -101,7 +101,7 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
     // dx = wmin * cos(angle) * 2;
     dx = wmax;
     dy = dx / cos(angle) * sin(angle) / 2;
-    shell = wall + gap;
+    shell = wall + margin;  // gap between bases and walls
     echo(angle, dx-rim, dy+shell);
     centers = [
         for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
@@ -131,7 +131,7 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1,
 }
 
 module minitray_25mm() {
-    minitray(25, space=0, gap=0.1);
+    minitray(25, space=0, margin=0.1, gutter=0);
 }
 
 module minitray_32mm() {
