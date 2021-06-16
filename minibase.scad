@@ -1,4 +1,3 @@
-default_wall = 1.25;  // TODO: remove
 default_magnet = [2, 6];
 default_guide = 2;
 default_tolerance = 0.1;
@@ -8,15 +7,21 @@ bit = 0.01;
 // h    height of base
 // rim  rim dimensions: diameter or [width, length]
 // top  top dimensions: diameter or [width, length]
-module minibase_hull(h, rim, top, center=false) {
+module minibase_hull(h, rim, top, cut=0, center=false) {
     rim_xy = is_num(rim) ? [rim, rim] : rim;
     top_xy = is_num(top) ? [top, top] : top;
 
     drim = max(rim_xy);
     dtop = max(top_xy);
-    hull() {
-        scale(rim_xy / drim) cylinder(h, d1=drim, d2=0, center=center);
-        scale(top_xy / dtop) cylinder(h, d1=0, d2=dtop, center=center);
+    difference() {
+        hull() {
+            scale(rim_xy / drim) cylinder(h, d1=drim, d2=0, center=center);
+            scale(top_xy / dtop) cylinder(h, d1=0, d2=dtop, center=center);
+        }
+        if (cut) {
+            cut_xy = is_num(cut) ? top_xy - 2*[cut, cut] : top_xy - 2*cut;
+            minibase_hull(3*h, cut_xy, cut_xy, center=true);
+        }
     }
 }
 
@@ -56,14 +61,6 @@ module minibase(magnet=default_magnet, guide=default_guide, cross=false,
     }
 }
 
-module minibase_25mm(magnet=default_magnet, guide=default_guide, cross=false,
-        flip=true) {
-    minibase(magnet=magnet, guide=guide, cross=cross, flip=flip) {
-        minibase_hull(3.4, 25, 23);
-        minibase_hull(2.4, 22.5, 21.5);
-    }
-}
-
 module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1.2,
         margin=0.25, gutter=0.15, rh=0, rx1=1, rx2=1, rx3=1) {
     zigzag = space > wall;
@@ -91,12 +88,8 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1.2,
     }
 
     translate([rim/2+shell, rim/2+shell]) {
-        %union() {
-            if (space) translate([dx/2, dy, -bit])
-                cylinder(height+2*bit, r=rim/2+inch);
-            for (center = centers) translate(center)
-                translate([0, 0, flat+bit]) cylinder(height, d=rim);
-        }
+        %if (space) translate([dx/2, dy, -bit])
+            cylinder(height+2*bit, r=rim/2+inch);
         *linear_extrude(height+bit) outline(0);
         indent = zigzag ?
             dy/sin(angle)/sin(angle)/2 - rim/2 - shell:
@@ -116,35 +109,75 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1.2,
             }
         }
         // inner retainer
-        if (rh) {
-            rr1 = rim/2 - rx1;  // bottom radius
-            rr2 = rr1 - rx2;  // top radius
-            rr3 = rr2 - rx3;  // inside radius
-            rr0 = rr1 + flat/rh*rx2;  // below surface radius
-            echo(rh, rr0, rr1, rr2, rr3);
-            for (center = centers) translate(center) difference() {
-                cylinder(rh+flat, rr0, rr2);
-                translate([0, 0, -1]) cylinder(h=rh+flat+2, r=rr3);
-            }
-        }
+        if ($children) for (center=centers) translate(center)
+            translate([0, 0, flat]) children();
+    }
+}
+
+// TODO: check measurements
+module exterior_25mm(x=0) { minibase_hull(3.4, 25, 23, x); }
+module interior_25mm(x=0) { minibase_hull(2.4, 22.5, 21.5, x); }
+module exterior_32mm(x=0) { minibase_hull(4.2, 32, 29, x); }
+module interior_32mm(x=0) { minibase_hull(2.8, 29, 27.5, x); }
+module exterior_40mm(x=0) { minibase_hull(4.0, 39.25, 36.25, x); }
+module interior_40mm(x=0) { minibase_hull(2.8, 37, 35.5, x); }
+
+module minibase_25mm(magnet=default_magnet, guide=default_guide, cross=false,
+        flip=true) {
+    minibase(magnet=magnet, guide=guide, cross=cross, flip=flip) {
+        exterior_25mm();
+        interior_25mm();
+    }
+}
+
+module minibase_32mm(magnet=default_magnet, guide=default_guide, cross=false,
+        flip=true) {
+    minibase(magnet=magnet, guide=guide, cross=cross, flip=flip) {
+        exterior_32mm();
+        interior_32mm();
     }
 }
 
 module minitray_25mm() {
-    minitray(25, space=0, wall=0, margin=0.1, gutter=0);
-    translate([0, 50]) minitray(25, space=0, margin=0.1, gutter=0);
+    minitray(25, [1], height=4, space=0, wall=0, margin=0.1, gutter=0) {
+        translate([0, 0, -0.2]) interior_25mm(1);
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    *minitray(25, height=4, space=0, wall=0, margin=0.1, gutter=0) {
+        translate([0, 0, -0.2]) interior_25mm(1);
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    *translate([0, 50]) minitray(25, space=0, margin=0.1, gutter=0) {
+        %translate([0, 0, bit]) minibase_25mm(flip=false);
+    }
 }
 
 module minitray_32mm() {
-    // minitray(32, [2,1], height=5.2, wall=0);
-    // minitray(32, wall=0, rh=2);
-    // translate([0, 50]) minitray(32);
-    minibase_hull(2.75, 29, 27.5);
+    minitray(32, [1], height=5, wall=0) {
+        translate([0, 0, -0.2]) interior_32mm(1);
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+    *minitray(32, height=5, wall=0) {
+        translate([0, 0, -0.2]) interior_32mm(1);
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+    *translate([0, 50]) minitray(32) {
+        %translate([0, 0, bit]) exterior_32mm();
+    }
 }
 
 module minitray_40mm() {
-    minitray(39.5, wall=0);
-    translate([0, 60]) minitray(39.5);
+    minitray(39.5, [1], height=4.8, wall=0) {
+        translate([0, 0, -0.2]) interior_40mm(1);
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    *minitray(39.5, height=4.8, wall=0) {
+        translate([0, 0, -0.2]) interior_40mm(1);
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    *translate([0, 60]) minitray(39.5) {
+        %translate([0, 0, bit]) exterior_40mm();
+    }
 }
 
 // vim: ai si sw=4 et
