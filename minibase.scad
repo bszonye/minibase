@@ -116,9 +116,9 @@ module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1.2,
 
 // TODO: check measurements
 module exterior_25mm(x=0) { minibase_hull(3.4, 25, 23, x); }
-module interior_25mm(x=0) { minibase_hull(2.4, 22.5, 21.5, x); }
+module interior_25mm(x=0) { minibase_hull(2.4, 22.5, 21, x); }
 module exterior_32mm(x=0) { minibase_hull(4.2, 32, 29, x); }
-module interior_32mm(x=0) { minibase_hull(2.8, 29, 27.5, x); }
+module interior_32mm(x=0) { minibase_hull(2.8, 29, 27, x); }
 module exterior_40mm(x=0) { minibase_hull(4.0, 39.25, 36.25, x); }
 module interior_40mm(x=0) { minibase_hull(2.8, 37, 35.5, x); }
 
