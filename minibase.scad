@@ -139,7 +139,7 @@ module minibase_32mm(magnet=default_magnet, guide=default_guide, cross=false,
 }
 
 module minitray_25mm() {
-    minitray(25, [1], height=4, space=0, wall=0, margin=0.1, gutter=0) {
+    *minitray(25, [1], height=4, space=0, wall=0, margin=0.1, gutter=0) {
         translate([0, 0, -0.2]) interior_25mm(1);
         %translate([0, 0, bit]) exterior_25mm();
     }
@@ -148,12 +148,15 @@ module minitray_25mm() {
         %translate([0, 0, bit]) exterior_25mm();
     }
     *translate([0, 50]) minitray(25, space=0, margin=0.1, gutter=0) {
-        %translate([0, 0, bit]) minibase_25mm(flip=false);
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    minitray(25, space=0, margin=0.1, gutter=0) {
+        %translate([0, 0, bit]) exterior_25mm();
     }
 }
 
 module minitray_32mm() {
-    minitray(32, [1], height=5, wall=0) {
+    *minitray(32, [1], height=5, wall=0) {
         translate([0, 0, -0.2]) interior_32mm(1);
         %translate([0, 0, bit]) exterior_32mm();
     }
@@ -164,10 +167,13 @@ module minitray_32mm() {
     *translate([0, 50]) minitray(32) {
         %translate([0, 0, bit]) exterior_32mm();
     }
+    minitray(32) {
+        %translate([0, 0, bit]) exterior_32mm();
+    }
 }
 
 module minitray_40mm() {
-    minitray(39.5, [1], height=4.8, wall=0) {
+    *minitray(39.5, [1], height=4.8, wall=0) {
         translate([0, 0, -0.2]) interior_40mm(1);
         %translate([0, 0, bit]) exterior_40mm();
     }
@@ -176,6 +182,9 @@ module minitray_40mm() {
         %translate([0, 0, bit]) exterior_40mm();
     }
     *translate([0, 60]) minitray(39.5) {
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    minitray(39.5) {
         %translate([0, 0, bit]) exterior_40mm();
     }
 }
