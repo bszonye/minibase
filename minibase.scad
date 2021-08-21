@@ -189,4 +189,21 @@ module minitray_40mm() {
     }
 }
 
+module rack_spacer() {
+    // measured dimensions are:
+    // height = 13mm (1/2in)
+    // inside = 15mm (6/10in)
+    // outside = 19mm (3/4in)
+    height = 13;
+    median = 17;  // average of inside & outside
+    wall = 2;  // 5 perimeters = 2.08mm
+    inside = median - wall;
+    outside = median + wall;
+    echo(height, inside, outside);
+    difference() {
+        cylinder(height, d=outside, center=true);
+        cylinder(height+1, d=inside, center=true);
+    }
+}
+
 // vim: ai si sw=4 et
