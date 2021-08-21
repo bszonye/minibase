@@ -1,91 +1,209 @@
-default_height = 3.25;
-default_slope = 1;
-default_wall = 1.25;
-default_magnet = [6, 2];
-default_sheath = 0.5;
-default_washer = 16;
+default_magnet = [2, 6];
 default_guide = 2;
 default_tolerance = 0.1;
+inch = 25.4;
+bit = 0.01;
 
-// rim      size of base rim: diameter or [width, length]
-// height   height of base
-// slope    horizontal component of wall slope: number or xy-vector
-module minibase_hull(rim, height=default_height, slope=default_slope,
-        top=undef) {
+// h    height of base
+// rim  rim dimensions: diameter or [width, length]
+// top  top dimensions: diameter or [width, length]
+module minibase_hull(h, rim, top, cut=0, center=false) {
     rim_xy = is_num(rim) ? [rim, rim] : rim;
-    slope_xy = is_num(slope) ? [slope, slope] : slope;
-    top_xy = is_undef(top) ? rim_xy - 2 * slope_xy : top;
+    top_xy = is_num(top) ? [top, top] : top;
 
     drim = max(rim_xy);
     dtop = max(top_xy);
-    hull() {
-        scale(rim_xy / drim) cylinder(d2=drim, d1=0, h=height);
-        scale(top_xy / dtop) cylinder(d1=dtop, d2=0, h=height);
-    }
-}
-
-// rim      rim dimensions: diameter or [width, length]
-// height   height of base
-// slope    horizontal component of wall slope: number or xy-vector
-// wall     thickness of base walls
-// magnet   magnet well dimensions: [diameter, height, optional tolerance]
-// sheath   thickness of magnet sheath
-// washer   diameter of washer gap
-// guide    thickness of guide rails
-// roof     thickness of base top (default=wall)
-// top      top dimensions: diameter or [width, length] (default from slope)
-module minibase(rim, height=default_height, slope=default_slope,
-        wall=default_wall, magnet=default_magnet, sheath=default_sheath,
-        washer=default_washer, guide=default_guide, roof=undef, top=undef) {
-    // convert diameters & slope runs to xy-vectors
-    rim_xy = is_num(rim) ? [rim, rim] : rim;
-    slope_xy = is_num(slope) ? [slope, slope] : slope;
-    top_xy = is_undef(top) ? rim_xy - 2 * slope_xy : top;
-    wall_xy = [wall, wall];
-
-    // base shell dimensions: rim, top, and maximum
-    drim = max(rim_xy);
-    dtop = max(top_xy);
-    dmax = max(drim, dtop);
-
-    // magnet dimensions: add tolerance to radius and height
-    tolerance = len(magnet) < 3 ? default_tolerance : magnet[2];
-    rmag = magnet[0] / 2 + tolerance;
-    hmag = magnet[1] + tolerance;
-
     difference() {
-        union() {
-            // main shell of the base
-            difference() {
-                minibase_hull(rim_xy, height, top=top_xy);
-                translate([0, 0, is_undef(roof) ? wall : roof])
-                    minibase_hull(rim_xy-2*wall_xy, height, top=top_xy-2*wall_xy);
-            }
-            // handle guides
-            intersection() {
-                minibase_hull(rim);
-                difference() {
-                    // guide rails
-                    union() {
-                        cube([dmax, guide, 2*height], center=true);
-                        cube([guide, dmax, 2*height], center=true);
-                    }
-                    // space for washer
-                    cube([washer, washer, 3*height], center=true);
-                }
-            }
-            // magnet sheath
-            cylinder(r=rmag+sheath, h=height);
+        hull() {
+            scale(rim_xy / drim) cylinder(h, d1=drim, d2=0, center=center);
+            scale(top_xy / dtop) cylinder(h, d1=0, d2=dtop, center=center);
         }
-        // magnet well
-        translate([0, 0, height-hmag]) cylinder(r=rmag, height);
+        if (cut) {
+            cut_xy = is_num(cut) ? top_xy - 2*[cut, cut] : top_xy - 2*cut;
+            minibase_hull(3*h, cut_xy, cut_xy, center=true);
+        }
     }
 }
 
-module minibase_25mm(magnet=default_magnet, sheath=default_sheath,
-        washer=default_washer, guide=default_guide) {
-    minibase(25, height=default_height, slope=default_slope, wall=default_wall,
-        magnet=magnet, sheath=sheath, washer=washer, guide=guide);
+module minibase_guide(h, d, guide=default_guide, cross=false, space=1000) {
+    // magnet well and sheath dimensions
+    gap = default_tolerance;
+    hwell = h + gap;
+    rwell = d/2 + gap;
+    rsheath = rwell + guide;
+    difference() {
+        intersection() {
+            union() {
+                if (cross) {
+                    cube([space, guide, space], center=true);
+                    cube([guide, space, space], center=true);
+                }
+                cylinder(space, r=rsheath);
+            }
+            children();
+        }
+        cylinder(2*hwell, r=rwell, center=true);
+    }
+}
+
+module minibase(magnet=default_magnet, guide=default_guide, cross=false,
+        flip=true) {
+    rotate(flip ? 180 : 0, [0, 1, 0]) {
+        difference() {
+            children(0);
+            hull() {  // extend the interior below the base
+                children(1);
+                translate([0, 0, -1]) children(1);
+            }
+        }
+        if (magnet)
+            minibase_guide(magnet[0], magnet[1], guide, cross) children(0);
+    }
+}
+
+module minitray(rim, ranks=[3,2], space=23.8, height=3.2, wall=1.2, flat=1.2,
+        margin=0.25, gutter=0.15, rh=0, rx1=1, rx2=1, rx3=1) {
+    zigzag = space > wall;
+    wmin = rim + gutter;  // gap between centered bases
+    wmax = max(rim + space, wmin);
+    adeep = asin(space/wmin);  // as deep as possible
+    awide = acos(wmax/wmin/2);  // as wide as possible
+    angle = max(30, awide);
+    // dy = wmin * sin(angle);
+    // dx = wmin * cos(angle) * 2;
+    dx = wmax;
+    dy = dx / cos(angle) * sin(angle) / 2;
+    shell = wall ? wall + margin : 0;  // gap between bases and walls
+    echo(angle, dx-rim, dy+shell);
+    centers = [
+        for (i = [0:len(ranks)-1], j = [0:ranks[i]-1])
+            [(j + (i%2)/2)*dx, i*dy]
+    ];
+    module soften(softness) {
+        offset(r=-softness) offset(r=softness) children();
+    }
+    module outline(softness) {
+        soften(softness)
+            for (center = centers) translate(center) circle(d=rim+2*shell);
+    }
+
+    translate([rim/2+shell, rim/2+shell]) {
+        %if (space) translate([dx/2, dy, -bit])
+            cylinder(height+2*bit, r=rim/2+inch);
+        *linear_extrude(height+bit) outline(0);
+        indent = zigzag ?
+            dy/sin(angle)/sin(angle)/2 - rim/2 - shell:
+            rim/2 + shell;
+        echo(indent);
+        *translate([3/2*dx, dy-rim/2-shell-indent]) circle(r=indent);
+        linear_extrude(flat) outline(max(indent, 3));
+        if (wall) {
+            linear_extrude(height) difference() {
+                outline(max(indent, 3));
+                offset(r=-wall) outline(zigzag ? 1 : 0.25);
+            }
+        } else {
+            linear_extrude(height) soften(-1) difference() {
+                outline(max(indent, 3));
+                offset(r=margin) outline(0);
+            }
+        }
+        // inner retainer
+        if ($children) for (center=centers) translate(center)
+            translate([0, 0, flat]) children();
+    }
+}
+
+// TODO: check measurements
+module exterior_25mm(x=0) { minibase_hull(3.4, 25, 23, x); }
+module interior_25mm(x=0) { minibase_hull(2.4, 22.5, 21, x); }
+module exterior_32mm(x=0) { minibase_hull(4.2, 32, 29, x); }
+module interior_32mm(x=0) { minibase_hull(2.8, 29, 27, x); }
+module exterior_40mm(x=0) { minibase_hull(4.0, 39.25, 36.25, x); }
+module interior_40mm(x=0) { minibase_hull(2.8, 37, 35.5, x); }
+
+module minibase_25mm(magnet=default_magnet, guide=default_guide, cross=false,
+        flip=true) {
+    minibase(magnet=magnet, guide=guide, cross=cross, flip=flip) {
+        exterior_25mm();
+        interior_25mm();
+    }
+}
+
+module minibase_32mm(magnet=default_magnet, guide=default_guide, cross=false,
+        flip=true) {
+    minibase(magnet=magnet, guide=guide, cross=cross, flip=flip) {
+        exterior_32mm();
+        interior_32mm();
+    }
+}
+
+module minitray_25mm() {
+    *minitray(25, [1], height=4, space=0, wall=0, margin=0.1, gutter=0) {
+        translate([0, 0, -0.2]) interior_25mm(1);
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    *minitray(25, height=4, space=0, wall=0, margin=0.1, gutter=0) {
+        translate([0, 0, -0.2]) interior_25mm(1);
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    *translate([0, 50]) minitray(25, space=0, margin=0.1, gutter=0) {
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+    minitray(25, space=0, margin=0.1, gutter=0) {
+        %translate([0, 0, bit]) exterior_25mm();
+    }
+}
+
+module minitray_32mm() {
+    *minitray(32, [1], height=5, wall=0) {
+        translate([0, 0, -0.2]) interior_32mm(1);
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+    *minitray(32, height=5, wall=0) {
+        translate([0, 0, -0.2]) interior_32mm(1);
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+    *translate([0, 50]) minitray(32) {
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+    minitray(32) {
+        %translate([0, 0, bit]) exterior_32mm();
+    }
+}
+
+module minitray_40mm() {
+    *minitray(39.5, [1], height=4.8, wall=0) {
+        translate([0, 0, -0.2]) interior_40mm(1);
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    *minitray(39.5, height=4.8, wall=0) {
+        translate([0, 0, -0.2]) interior_40mm(1);
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    *translate([0, 60]) minitray(39.5) {
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+    minitray(39.5) {
+        %translate([0, 0, bit]) exterior_40mm();
+    }
+}
+
+module rack_spacer() {
+    // measured dimensions are:
+    // height = 13mm (1/2in)
+    // inside = 15mm (6/10in)
+    // outside = 19mm (3/4in)
+    height = 13;
+    median = 17;  // average of inside & outside
+    wall = 2;  // 5 perimeters = 2.08mm
+    inside = median - wall;
+    outside = median + wall;
+    echo(height, inside, outside);
+    difference() {
+        cylinder(height, d=outside, center=true);
+        cylinder(height+1, d=inside, center=true);
+    }
 }
 
 // vim: ai si sw=4 et
